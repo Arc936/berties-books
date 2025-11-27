@@ -104,21 +104,36 @@ router.get('/register', function (req, res, next) {
 })
 
 router.post('/registered',
-    // 1. Validation Middleware Array (as before)
+    // 1. Validation and Sanitization Middleware Array
     [
-        check('email').isEmail(), 
-        check('username').isLength({ min: 5, max: 20})
+        // Validation & Sanitization for 'email'
+        check('email').isEmail().withMessage('Invalid email address.').normalizeEmail(), 
+        
+        // Validation & Sanitization for 'username'
+        check('username')
+            .isLength({ min: 5, max: 20}).withMessage('Username must be 5 to 20 characters.')
+            .trim().escape(), // <-- SANITIZATION: trim whitespace, escape HTML entities
+        
+        // Sanitization for 'first' and 'last' name fields 
+        // Note: No validation applied here, only sanitization. You should add validation (e.g., isLength) if needed.
+        check('first')
+            .trim().escape(), // <-- SANITIZATION
+        check('last')
+            .trim().escape() // <-- SANITIZATION
     ],
     // 2. Main Route Handler
     function (req, res, next) {
         const errors = validationResult(req);
         
-        // --- B. Sanitize Inputs (Place the sanitization here) ---
-        const sanitizedFirstName = req.sanitize(req.body.first); 
-        const sanitizedLastName = req.sanitize(req.body.last);
+        // Note: req.body fields are now sanitized in the middleware above.
+        // We will refer to them directly as req.body.first, etc.
 
         // --- A. Handle Validation Errors ---
         if (!errors.isEmpty()) {
+            // Log errors if necessary
+            console.log('Validation failed:', errors.array());
+            
+            // If validation fails, reload the register page (You may want to pass errors here)
             return res.render('./register'); 
         }
 
@@ -135,25 +150,33 @@ router.post('/registered',
 
                 // 3. Store the user in the database.
                 const sqlquery = "INSERT INTO users (username, firstName, lastName, email, hashedPassword) VALUES (?, ?, ?, ?, ?)";
+                
+                // IMPORTANT: The values in req.body.first and req.body.last are now the SANITIZED values 
+                // because of the .trim().escape() in the middleware array.
                 const userDetails = [
                     req.body.username,
-                    sanitizedFirstName, 
-                    sanitizedLastName, 
+                    req.body.first,  // Now sanitized
+                    req.body.last,   // Now sanitized
                     req.body.email, 
                     hashedPassword
                 ];
                 
+                // Remove the old req.sanitize() calls, they are no longer needed
+                // const sanitizedFirstName = req.sanitize(req.body.first); 
+                // const sanitizedLastName = req.sanitize(req.body.last);
+                
                 db.query(sqlquery, userDetails, (dbError, result) => {
                     if (dbError) {
                         console.error('Database insertion error:', dbError);
+                        // Check for duplicate entry error (e.g., duplicate username)
+                        if (dbError.code === 'ER_DUP_ENTRY') {
+                            // You might want to handle this specific error more gracefully
+                            return res.send(`<h1>Registration Failed</h1><p>Username or email already exists.</p><a href='/register'>Try Again</a>`);
+                        }
                         return next(dbError); 
                     }
                     
-                    // 4. Success Response: ONLY USE res.redirect()
-                    // The successMessage variable is no longer needed here since it was only used by res.send()
-                    
-                    
-                    // This is the ONLY line needed to finish the request successfully:
+                    // 4. Success Response: Redirect to login page
                     return res.redirect('./login'); 
                 });
             });
