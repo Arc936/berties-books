@@ -152,8 +152,9 @@ router.post('/registered',
                     // 4. Success Response: ONLY USE res.redirect()
                     // The successMessage variable is no longer needed here since it was only used by res.send()
                     
+                    
                     // This is the ONLY line needed to finish the request successfully:
-                    return res.redirect('/users/login'); 
+                    return res.redirect('./login'); 
                 });
             });
         }
