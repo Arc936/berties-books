@@ -3,6 +3,8 @@ var express = require ('express')
 var ejs = require('ejs')
 const path = require('path')
 var mysql = require('mysql2');
+var session = require ('express-session')
+const expressSanitizer = require('express-sanitizer');
 require('dotenv').config();
 
 // Create the express application object
@@ -34,7 +36,18 @@ db.connect(function(err) {
 });
 global.db = db;
 
+// Create a session
+app.use(session({
+    secret: 'somerandomstuff',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        expires: 600000
+    }
+}))
 
+// Create an input sanitizer
+app.use(expressSanitizer());
 
 // Tell Express that we want to use EJS as the templating engine
 app.set('view engine', 'ejs')

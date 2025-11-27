@@ -2,6 +2,7 @@
 const express = require("express")
 const router = express.Router()
 
+
 router.get('/search', function (req, res, next) {
     // Renders the search results page but passes an empty array and blank term 
     // so the user sees the search bar and the '0 found' message.
